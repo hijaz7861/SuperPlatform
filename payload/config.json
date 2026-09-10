@@ -1,0 +1,7 @@
+{
+  "mode": "development",
+  "auto_test": true,
+  "security": {
+    "allow_destructive_actions": false
+  }
+}

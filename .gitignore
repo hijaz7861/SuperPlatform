@@ -1,0 +1,68 @@
+# Secrets
+.env
+*.env
+*.key
+*.pem
+*.secret
+secrets/
+credentials/
+
+# SSH / credentials
+id_rsa
+id_ed25519
+*.pub
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs
+*.log
+logs/
+
+# Runtime/cache
+.cache/
+tmp/
+temp/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Android / Termux temporary files
+termux_history_backup.txt
+termux_session_*.log
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archives / generated packages
+*.zip
+*.tar
+*.tar.gz
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Backups
+backups/
+
+# Generated Solidity / compiler artifacts
+**/direct_build/
+**/artifacts/
+**/cache/

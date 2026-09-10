@@ -1,0 +1,19 @@
+{
+  "name": "SuperPlatform Payload",
+  "version": "1.0.0",
+  "target": [
+    "Termux",
+    "Pydroid 3",
+    "Linux"
+  ],
+  "modules": [
+    "core",
+    "ai",
+    "ocr",
+    "privacy",
+    "security",
+    "ledger",
+    "testing",
+    "deployment"
+  ]
+}

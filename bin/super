@@ -1,0 +1,96 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+BASE="$HOME/SuperPlatform"
+TOR="$BASE/modules/privacy/tor/tor_manager.sh"
+AGENT="$BASE/agent/agent.sh"
+KALI="$BASE/tools/kali_tools.sh"
+
+case "$1 $2 $3" in
+"privacy status")
+    "$BASE/modules/privacy/core/privacy.sh" status
+    ;;
+
+"privacy health")
+    "$BASE/modules/privacy/core/privacy.sh" health
+    ;;
+
+"privacy network")
+    "$BASE/modules/privacy/core/privacy.sh" network
+    ;;
+
+"privacy dns")
+    "$BASE/modules/privacy/core/privacy.sh" dns
+    ;;
+
+"privacy connections")
+    "$BASE/modules/privacy/core/privacy.sh" connections
+    ;;
+
+"privacy audit")
+    "$BASE/modules/privacy/core/privacy.sh" audit
+    ;;
+
+"privacy tor status")
+    "$TOR" status
+    ;;
+
+"privacy tor start")
+    "$TOR" start
+    ;;
+
+"privacy tor stop")
+    "$TOR" stop
+    ;;
+
+"privacy tor restart")
+    "$TOR" stop
+    sleep 2
+    "$TOR" start
+    ;;
+
+"privacy tor test")
+    "$TOR" test
+    ;;
+
+"system status")
+    "$AGENT" system
+    ;;
+
+"network status")
+    "$AGENT" network
+    ;;
+
+"wifi status")
+    "$AGENT" wifi
+    ;;
+
+"storage status")
+    "$AGENT" storage
+    ;;
+
+"agent status")
+    "$AGENT" status
+    ;;
+
+"kali search nmap")
+    "$KALI"
+    ;;
+
+*)
+    echo "===== SUPER PLATFORM ====="
+    echo
+    echo "Privacy:"
+    echo "  super privacy tor status"
+    echo "  super privacy tor start"
+    echo "  super privacy tor stop"
+    echo "  super privacy tor restart"
+    echo "  super privacy tor test"
+    echo
+    echo "System:"
+    echo "  super system status"
+    echo "  super network status"
+    echo "  super wifi status"
+    echo "  super storage status"
+    echo "  super agent status"
+    ;;
+esac
