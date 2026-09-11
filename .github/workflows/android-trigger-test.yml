@@ -1,0 +1,22 @@
+name: Android Trigger Diagnostic
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnostic
+        run: |
+          echo "ANDROID WORKFLOW TRIGGER: PASS"
+          echo "RUN_ID=${GITHUB_RUN_ID}"
+          echo "SHA=${GITHUB_SHA}"
+          echo "EVENT=${GITHUB_EVENT_NAME}"
+          echo "REF=${GITHUB_REF}"
+          echo "RUNNER=${RUNNER_OS}"
