@@ -83,6 +83,9 @@ jobs:
         working-directory: build/work
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+          PYO3_CROSS: "1"
+          PYO3_CROSS_PYTHON_VERSION: "3.14"
+          PYO3_CROSS_PYTHON_IMPLEMENTATION: "CPython"
           RUSTFLAGS: "-C link-arg=-Wl,--no-as-needed -C link-arg=-Wl,-rpath,/data/data/com.termux/files/usr/lib"
         run: |
           mkdir -p ../../dist
@@ -90,7 +93,6 @@ jobs:
           maturin build \
             --release \
             --target "${RUST_TARGET}" \
-            --interpreter python3.14 \
             --out ../../dist
 
       - name: Inspect native wheel
