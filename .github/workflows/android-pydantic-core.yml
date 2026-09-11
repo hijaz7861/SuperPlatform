@@ -2,6 +2,8 @@ name: Android ARM64 pydantic-core
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
