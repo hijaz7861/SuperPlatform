@@ -79,6 +79,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "maturin>=1.9,<2"
 
+      - name: Inspect pydantic-core build configuration
+        working-directory: build/work
+        run: |
+          echo "=== Cargo.toml ==="
+          sed -n '1,240p' Cargo.toml
+
+          echo
+          echo "=== pyproject.toml ==="
+          if [ -f pyproject.toml ]; then
+            sed -n '1,260p' pyproject.toml
+          else
+            echo "No pyproject.toml"
+          fi
+
+          echo
+          echo "=== maturin configuration ==="
+          grep -RniE 'pyo3|abi3|extension-module|maturin|python'             Cargo.toml pyproject.toml 2>/dev/null || true
+
       - name: Build Android wheel
         working-directory: build/work
         env:
