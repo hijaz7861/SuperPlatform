@@ -1,0 +1,27 @@
+{
+  "verified_at": "2026-09-10T17:14:43.661127+00:00",
+  "deployment_performed": false,
+  "arbitrary_remote_shell": false,
+  "providers": [
+    {
+      "provider": "render",
+      "endpoint": "https://api.render.com/v1/services?limit=1",
+      "network_reachable": true,
+      "credentials_present": false,
+      "authenticated": false,
+      "verified": false,
+      "status": 401,
+      "reason": "RENDER_API_KEY not configured"
+    },
+    {
+      "provider": "cloudflare",
+      "endpoint": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+      "network_reachable": true,
+      "credentials_present": false,
+      "authenticated": false,
+      "verified": false,
+      "status": 400,
+      "reason": "CLOUDFLARE_API_TOKEN not configured"
+    }
+  ]
+}

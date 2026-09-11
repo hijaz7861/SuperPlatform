@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
-
 import sys
 import os
 import json
+import subprocess
 import urllib.request
-import urllib.error
 
-SERVER = os.environ.get("SUPERPLATFORM_SERVER", "")
+SERVER = os.environ.get("SUPERPLATFORM_SERVER", "").strip()
 
-def send_command(command):
-    if not SERVER:
-        print("SUPERPLATFORM_SERVER is not configured.")
-        print("Remote server address is required.")
-        sys.exit(1)
-
+def remote(command):
     payload = json.dumps({
         "command": command,
         "project": "SuperPlatform",
@@ -27,17 +21,33 @@ def send_command(command):
         method="POST"
     )
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            print(response.read().decode())
-    except Exception as e:
-        print("REMOTE CONNECTION ERROR:")
-        print(e)
-        sys.exit(2)
+    with urllib.request.urlopen(req, timeout=30) as response:
+        print(response.read().decode())
 
-if __name__ == "__main__":
+def local(command):
+    print("MODE: LOCAL")
+    print("COMMAND:", command)
+    print("STATUS: LOCAL WORKER NOT YET ENABLED")
+    print("Remote server is not configured.")
+    print("Use 'sp status' for capability detection.")
+
+def main():
     if len(sys.argv) < 2:
         print('Usage: sp "your command"')
         sys.exit(1)
 
-    send_command(" ".join(sys.argv[1:]))
+    command = " ".join(sys.argv[1:])
+
+    if SERVER:
+        try:
+            print("MODE: REMOTE")
+            remote(command)
+            return
+        except Exception as e:
+            print("REMOTE UNAVAILABLE:", e)
+            print("FALLBACK: LOCAL")
+
+    local(command)
+
+if __name__ == "__main__":
+    main()

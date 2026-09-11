@@ -1,0 +1,12 @@
+{
+  "provider": "render",
+  "operation": "deployment_plan_only",
+  "deployment_performed": false,
+  "remote_write_actions": false,
+  "arbitrary_remote_shell": false,
+  "runtime": "python",
+  "application_target": "SuperPlatform",
+  "source": "current_git_repository",
+  "authentication": "RENDER_API_KEY",
+  "deployment_mode": "explicit_approval_required"
+}

@@ -66,3 +66,12 @@ backups/
 **/direct_build/
 **/artifacts/
 **/cache/
+
+# Local backup / temporary files
+*.bak
+*.backup
+*.backup_*
+*.old
+*.tmp
+
+# Project backup directories

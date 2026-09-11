@@ -1,0 +1,5 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+BASE="$HOME/SuperPlatform/modules/wifi"
+
+"$BASE/core/wifi_ai.sh" "${1:-status}"

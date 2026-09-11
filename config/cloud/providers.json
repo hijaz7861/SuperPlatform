@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-09-10T17:14:42.783201+00:00",
+  "providers": [
+    {
+      "id": "render",
+      "name": "Render",
+      "category": "cloud_application_host",
+      "runtime": [
+        "python",
+        "fastapi"
+      ],
+      "free_candidate": true,
+      "authentication_required": true,
+      "deployment": "api_or_git",
+      "verified": false
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "category": "edge_platform",
+      "runtime": [
+        "workers"
+      ],
+      "free_candidate": true,
+      "authentication_required": true,
+      "deployment": "api_or_git",
+      "verified": false
+    }
+  ]
+}

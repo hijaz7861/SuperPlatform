@@ -1,0 +1,10 @@
+# SuperPlatform Wi-Fi runtime data
+logs/
+state/
+
+# Local development backups
+*.bak_*
+
+# Temporary diagnostic artifacts
+*.tmp
+*.trace

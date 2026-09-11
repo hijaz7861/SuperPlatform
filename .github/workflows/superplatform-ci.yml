@@ -1,0 +1,94 @@
+name: SuperPlatform CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate SuperPlatform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python syntax check
+        run: |
+          python -m compileall -q \
+            cloudctl.py \
+            tools/cloud_host \
+            modules/autonomous_command_engine
+
+      - name: Validate JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in Path("config").rglob("*.json"):
+              print(f"Checking {path}")
+              with path.open(encoding="utf-8") as f:
+                  json.load(f)
+
+          print("JSON validation completed")
+          PY
+
+      - name: Git status
+        run: |
+          git status --short
+
+      - name: Basic project checks
+        run: |
+          test -f cloudctl.py
+          test -f tools/cloud_host/cloudctl.py
+          test -f config/cloud/providers.json
+          test -f config/cloud/verification.json
+
+          echo "Required project files detected."
+
+  server:
+    name: Validate Autonomous Command Engine
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install server requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r modules/autonomous_command_engine/server/requirements.txt
+
+      - name: Compile server
+        run: |
+          python -m compileall -q modules/autonomous_command_engine/server
+
+      - name: Verify imports
+        run: |
+          python - <<'PY'
+          import fastapi
+          import requests
+          import uvicorn
+
+          print("FastAPI:", fastapi.__version__)
+          print("Requests:", requests.__version__)
+          print("Uvicorn:", uvicorn.__version__)
+          print("Python dependencies imported successfully.")
+          PY
