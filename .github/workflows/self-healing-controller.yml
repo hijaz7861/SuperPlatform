@@ -1,0 +1,214 @@
+name: SuperPlatform Self-Healing Controller
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_workflow:
+        description: "Workflow to diagnose"
+        required: true
+        default: "android-pydantic-core.yml"
+      max_cycles:
+        description: "Maximum repair/verify cycles"
+        required: true
+        default: "10"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  self-heal:
+    name: Scan Diagnose Repair Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install diagnostics
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml
+
+      - name: GitHub system scan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_WORKFLOW: ${{ inputs.target_workflow }}
+          MAX_CYCLES: ${{ inputs.max_cycles }}
+        run: |
+          set -euo pipefail
+
+          echo "=========================================="
+          echo "SUPERPLATFORM SELF-HEALING CONTROLLER"
+          echo "=========================================="
+          echo "Target: ${TARGET_WORKFLOW}"
+          echo "Maximum cycles: ${MAX_CYCLES}"
+          echo
+
+          echo "=== WORKFLOW REGISTRATION ==="
+          gh workflow view "${TARGET_WORKFLOW}" --yaml
+
+          echo
+          echo "=== RECENT RUNS ==="
+          gh run list \
+            --workflow "${TARGET_WORKFLOW}" \
+            --limit 10 \
+            --json databaseId,status,conclusion,event,headSha,createdAt
+
+          echo
+          echo "=== REPOSITORY STATUS ==="
+          git status --short
+
+      - name: Reactive diagnosis engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_WORKFLOW: ${{ inputs.target_workflow }}
+          MAX_CYCLES: ${{ inputs.max_cycles }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p self-healing/reports
+
+          RUN_ID="$(gh run list \
+            --workflow "${TARGET_WORKFLOW}" \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')"
+
+          echo "Latest run: ${RUN_ID}"
+
+          gh run view "${RUN_ID}" \
+            --json databaseId,status,conclusion,event,headSha,workflowName,url \
+            > self-healing/reports/run.json
+
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+            > self-healing/reports/jobs.json
+
+          gh run view "${RUN_ID}" --log \
+            > self-healing/reports/run.log 2>&1 || true
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          run = json.loads(
+              Path("self-healing/reports/run.json").read_text()
+          )
+
+          jobs = json.loads(
+              Path("self-healing/reports/jobs.json").read_text()
+          )
+
+          print("=== DIAGNOSIS ===")
+          print("Status:", run.get("status"))
+          print("Conclusion:", run.get("conclusion"))
+          print("SHA:", run.get("headSha"))
+
+          for job in jobs.get("jobs", []):
+              print()
+              print("JOB:", job.get("name"))
+              print("STATUS:", job.get("status"))
+              print("CONCLUSION:", job.get("conclusion"))
+
+              for step in job.get("steps", []):
+                  if step.get("status") != "completed" or step.get("conclusion") != "success":
+                      print(
+                          "PROBLEM STEP:",
+                          step.get("name"),
+                          "STATUS=", step.get("status"),
+                          "CONCLUSION=", step.get("conclusion")
+                      )
+
+          log = Path("self-healing/reports/run.log").read_text(
+              errors="replace"
+          )
+
+          patterns = [
+              "error",
+              "failed",
+              "failure",
+              "fatal",
+              "exception",
+              "traceback",
+              "not found",
+              "no such file",
+              "permission denied",
+              "invalid",
+              "unsupported",
+              "exit code",
+          ]
+
+          print()
+          print("=== ERROR SIGNATURES ===")
+
+          found = set()
+
+          for line in log.splitlines():
+              low = line.lower()
+              if any(p in low for p in patterns):
+                  line = line.strip()
+                  if line and line not in found:
+                      found.add(line)
+                      print(line)
+
+          if not found:
+              print("NO_ERROR_SIGNATURE_FOUND")
+          PY
+
+      - name: Safe repair gate
+        run: |
+          set -euo pipefail
+
+          echo "=== SAFE REPAIR POLICY ==="
+          echo "No blind source modification is permitted."
+          echo "Only evidence-backed corrections may be applied."
+          echo
+          echo "The diagnosis artifacts are available under:"
+          find self-healing -maxdepth 3 -type f -print
+
+          echo
+          echo "=== CURRENT WORKFLOW SYNTAX CHECK ==="
+          python - <<'PY'
+          import yaml
+          from pathlib import Path
+
+          path = Path(".github/workflows/android-pydantic-core.yml")
+
+          if not path.exists():
+              raise SystemExit(f"Target workflow missing: {path}")
+
+          data = yaml.safe_load(path.read_text())
+
+          if not isinstance(data, dict):
+              raise SystemExit("Workflow YAML is not a mapping")
+
+          if "jobs" not in data:
+              raise SystemExit("Workflow has no jobs")
+
+          print("Workflow structure: VALID")
+          print("Jobs:", list(data["jobs"]))
+          PY
+
+      - name: Verification report
+        run: |
+          set -euo pipefail
+
+          echo "=========================================="
+          echo "SELF-HEALING VERIFICATION REPORT"
+          echo "=========================================="
+
+          echo
+          echo "Controller executed successfully."
+
+          echo
+          echo "Important:"
+          echo "This first version performs evidence-based scanning"
+          echo "and verification infrastructure."
+          echo "It does NOT blindly rewrite production code."
+
+          echo
+          echo "Reports:"
+          find self-healing/reports -type f -maxdepth 2 -print
