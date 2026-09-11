@@ -1,0 +1,139 @@
+name: Android ARM64 pydantic-core
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android ARM64 Python 3.14 wheel
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_API: "24"
+      NDK_VERSION: "30.0.16248370"
+      RUST_TARGET: "aarch64-linux-android"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Configure Android toolchain
+        run: |
+          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
+          echo "$TOOLCHAIN" >> "$GITHUB_PATH"
+
+          echo "CC_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang" >> "$GITHUB_ENV"
+          echo "CXX_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang++" >> "$GITHUB_ENV"
+          echo "AR_aarch64_linux_android=$TOOLCHAIN/llvm-ar" >> "$GITHUB_ENV"
+          echo "RANLIB_aarch64_linux_android=$TOOLCHAIN/llvm-ranlib" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang" >> "$GITHUB_ENV"
+
+      - name: Verify toolchain
+        run: |
+          python --version
+          rustc --version
+          cargo --version
+          aarch64-linux-android${ANDROID_API}-clang --version
+          llvm-ar --version
+
+      - name: Download pydantic-core source
+        run: |
+          mkdir -p build/source
+          python -m pip download \
+            --no-binary=:all: \
+            --no-deps \
+            --dest build/source \
+            "pydantic-core"
+
+      - name: Extract source
+        run: |
+          mkdir -p build/work
+          tar -xf build/source/pydantic_core-*.tar.gz \
+            -C build/work \
+            --strip-components=1
+
+      - name: Install maturin
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.9,<2"
+
+      - name: Build Android wheel
+        working-directory: build/work
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+          RUSTFLAGS: "-C link-arg=-Wl,--no-as-needed -C link-arg=-Wl,-rpath,/data/data/com.termux/files/usr/lib"
+        run: |
+          mkdir -p ../../dist
+
+          maturin build \
+            --release \
+            --target "${RUST_TARGET}" \
+            --out ../../dist
+
+      - name: Inspect native wheel
+        run: |
+          set -eux
+
+          ls -lah dist/
+
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          wheels = list(Path("dist").glob("*.whl"))
+
+          if not wheels:
+              raise SystemExit("NO WHEEL PRODUCED")
+
+          for wheel in wheels:
+              print("WHEEL:", wheel)
+
+              with zipfile.ZipFile(wheel) as z:
+                  native = [
+                      name
+                      for name in z.namelist()
+                      if name.endswith(".so")
+                  ]
+
+                  if not native:
+                      raise SystemExit("NO NATIVE .so FOUND IN WHEEL")
+
+                  print("NATIVE LIBRARIES:")
+                  for item in native:
+                      print(item)
+          PY
+
+      - name: Generate SHA256
+        run: |
+          sha256sum dist/*.whl | tee dist/SHA256SUMS.txt
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pydantic-core-android-arm64-python314
+          path: |
+            dist/*.whl
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
