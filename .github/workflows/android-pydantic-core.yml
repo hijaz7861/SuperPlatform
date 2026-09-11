@@ -1,0 +1,125 @@
+name: Android ARM64 pydantic-core
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android ARM64 Python 3.14 wheel
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_API_LEVEL: "24"
+      CIBW_BUILD: "cp314-android_arm64_v8a"
+      CIBW_ARCHS_ANDROID: "arm64_v8a"
+      CIBW_TEST_SKIP: "*-android_arm64_v8a"
+      CIBW_BUILD_VERBOSITY: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-24" \
+            "ndk;30.0.16248370"
+
+      - name: Verify Android toolchain
+        run: |
+          set -eux
+          uname -a
+          python --version
+          python -m pip --version
+          echo "ANDROID_API_LEVEL=${ANDROID_API_LEVEL}"
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          find "${ANDROID_SDK_ROOT}/ndk" -maxdepth 2 -type f \
+            -name clang | head -20 || true
+
+      - name: Download pydantic-core source
+        run: |
+          set -eux
+          rm -rf build/source build/work dist
+          mkdir -p build/source build/work dist
+          python -m pip download \
+            --no-binary=:all: \
+            --no-deps \
+            --dest build/source \
+            pydantic-core
+          ls -lh build/source
+
+      - name: Extract pydantic-core
+        run: |
+          set -eux
+          tar -xf build/source/pydantic_core-*.tar.gz \
+            -C build/work \
+            --strip-components=1
+          sed -n '1,220p' build/work/pyproject.toml
+          sed -n '1,220p' build/work/Cargo.toml
+
+      - name: Install cibuildwheel
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade cibuildwheel
+          python -m pip show cibuildwheel
+
+      - name: Build Android wheel
+        run: |
+          set -eux
+          cd build/work
+          python -m cibuildwheel \
+            --platform android \
+            --only cp314-android_arm64_v8a \
+            --output-dir ../../dist
+
+      - name: Inspect wheel
+        run: |
+          set -eux
+          ls -lah dist
+          python - <<'PY'
+          import glob
+          import zipfile
+
+          wheels = glob.glob("dist/*.whl")
+          if not wheels:
+              raise SystemExit("NO WHEEL GENERATED")
+
+          for wheel in wheels:
+              print("WHEEL:", wheel)
+              with zipfile.ZipFile(wheel) as z:
+                  native = [n for n in z.namelist() if n.endswith(".so")]
+                  print("Native libraries:")
+                  for name in native:
+                      print(" ", name)
+                  if not native:
+                      raise SystemExit("FAIL: wheel contains no native .so")
+          PY
+
+      - name: SHA256
+        run: |
+          set -eux
+          sha256sum dist/*.whl
+
+      - name: Upload Android wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: pydantic-core-android-arm64-python314
+          path: dist/*.whl
+          if-no-files-found: error
