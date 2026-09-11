@@ -1,0 +1,23 @@
+{
+  "id": "android-pydantic-core",
+  "name": "Android ARM64 pydantic-core Python 3.14",
+  "workflow": "android-pydantic-core.yml",
+  "test": ".self-healing/tests/test_pydantic_core_android.sh",
+  "artifact_glob": "artifacts/android/**/pydantic_core-*.whl",
+  "runtime": {
+    "python": "3.14",
+    "android_api": "24",
+    "architecture": "arm64_v8a"
+  },
+  "verification": [
+    "wheel_detection",
+    "python_version",
+    "installation",
+    "import",
+    "schema_validation",
+    "runtime",
+    "native_arm64_extension"
+  ],
+  "pass_requires_actual_execution": true,
+  "auto_repair": true
+}
