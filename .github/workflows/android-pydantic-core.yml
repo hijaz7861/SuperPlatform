@@ -90,6 +90,7 @@ jobs:
           maturin build \
             --release \
             --target "${RUST_TARGET}" \
+            --interpreter python3.14 \
             --out ../../dist
 
       - name: Inspect native wheel
