@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+STATE = ROOT / ".superplatform" / "state"
+REPORTS = ROOT / ".superplatform" / "reports"
+STATE.mkdir(parents=True, exist_ok=True)
+REPORTS.mkdir(parents=True, exist_ok=True)
+
+REPORT = {
+    "project": "SuperPlatform",
+    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    "stages": [],
+    "status": "RUNNING",
+}
+
+def run(name, cmd, timeout=900):
+    print(f"\n{'='*70}\n[{name}]\n{'='*70}")
+    try:
+        p = subprocess.run(
+            cmd,
+            cwd=ROOT,
+            shell=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+        output = p.stdout[-30000:]
+        print(output)
+        result = {
+            "name": name,
+            "returncode": p.returncode,
+            "passed": p.returncode == 0,
+            "output": output,
+        }
+    except subprocess.TimeoutExpired as e:
+        output = (e.stdout or "")[-30000:] if e.stdout else ""
+        result = {
+            "name": name,
+            "returncode": 124,
+            "passed": False,
+            "output": output + "\nTIMEOUT",
+        }
+        print(output)
+        print("TIMEOUT")
+    except Exception as e:
+        result = {
+            "name": name,
+            "returncode": 1,
+            "passed": False,
+            "output": str(e),
+        }
+        print("ERROR:", e)
+
+    REPORT["stages"].append(result)
+    return result["passed"]
+
+def save_report(status=None):
+    if status:
+        REPORT["status"] = status
+    REPORT["finished_at"] = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+    )
+    path = REPORTS / "master_report.json"
+    path.write_text(
+        json.dumps(REPORT, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return path
+
+print("""
+╔══════════════════════════════════════════════════════════════╗
+║          SUPERPLATFORM MASTER AUTOMATION ENGINE             ║
+║       AUDIT → TEST → DIAGNOSE → REPAIR → VERIFY             ║
+╚══════════════════════════════════════════════════════════════╝
+""")
+
+# 0. Repository safety checkpoint
+if not run(
+    "GIT SAFETY CHECK",
+    "git rev-parse --is-inside-work-tree && git status --short",
+):
+    save_report("BLOCKED")
+    sys.exit(1)
+
+# 1. Python syntax
+if not run(
+    "PYTHON SYNTAX",
+    "python -m compileall -q .",
+):
+    print("\nPYTHON SYNTAX FAILED.")
+    print("No automatic destructive repair will be attempted.")
+    save_report("FAILED_SYNTAX")
+    sys.exit(2)
+
+# 2. Existing project tests
+test_commands = [
+    "pytest -q",
+    "python -m unittest discover -v",
+]
+
+tests_found = False
+
+for cmd in test_commands:
+    if cmd.startswith("pytest") and not (ROOT / "pytest.ini").exists() \
+       and not (ROOT / "pyproject.toml").exists() \
+       and not (ROOT / "setup.cfg").exists():
+        continue
+
+    tests_found = True
+    run("PROJECT TEST: " + cmd, cmd, timeout=1800)
+
+# 3. GitHub workflow inventory
+run(
+    "WORKFLOW AUDIT",
+    "find .github/workflows -maxdepth 1 -type f -print 2>/dev/null || true",
+)
+
+# 4. Dependency metadata audit
+run(
+    "DEPENDENCY INVENTORY",
+    "find . -maxdepth 3 -type f "
+    "\\( -name 'requirements*.txt' -o -name 'pyproject.toml' "
+    "-o -name 'package.json' -o -name 'go.mod' -o -name 'Cargo.toml' \\) "
+    "-print",
+)
+
+# 5. Existing self-healing engine, if present
+healer = ROOT / ".self-healing" / "engine" / "self_heal_orchestrator.sh"
+
+if healer.exists() and os.access(healer, os.X_OK):
+    print("\nSELF-HEALING ENGINE DETECTED.")
+    print("SAFE MODE: existing engine may diagnose/validate.")
+    run(
+        "SELF-HEALING VALIDATION",
+        f"bash {healer} --help 2>/dev/null || true",
+        timeout=120,
+    )
+else:
+    print("\nNo executable self-healing orchestrator detected.")
+
+# 6. Final evidence
+report_path = save_report()
+
+failed = [
+    x for x in REPORT["stages"]
+    if not x["passed"]
+]
+
+if failed:
+    REPORT["status"] = "FAILED_WITH_EVIDENCE"
+else:
+    REPORT["status"] = "VERIFIED_LOCAL_CHECKS"
+
+report_path.write_text(
+    json.dumps(REPORT, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+
+print("\n" + "="*70)
+print("SUPERPLATFORM MASTER RESULT")
+print("="*70)
+print("STATUS :", REPORT["status"])
+print("REPORT :", report_path)
+print("FAILED :", len(failed))
+
+if failed:
+    print("\nIMPORTANT:")
+    print("Failure detected. No false PASS and no automatic production deployment.")
+    sys.exit(3)
+
+print("\nLOCAL VERIFICATION COMPLETE.")
+print("Production deployment is NOT claimed.")
