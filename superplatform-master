@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -99,22 +100,50 @@ if not run(
     save_report("FAILED_SYNTAX")
     sys.exit(2)
 
-# 2. Existing project tests
-test_commands = [
-    "pytest -q",
-    "python -m unittest discover -v",
+# 2. Universal test discovery and execution
+print("\\nTEST DISCOVERY")
+
+test_results = []
+test_candidates = []
+
+if shutil.which("pytest"):
+    test_candidates.append(("PYTEST", "pytest -q"))
+
+if (
+    (ROOT / "pytest.ini").exists()
+    or (ROOT / "pyproject.toml").exists()
+    or (ROOT / "setup.cfg").exists()
+    or (ROOT / "tests").exists()
+):
+    if shutil.which("pytest") and ("PYTEST", "pytest -q") not in test_candidates:
+        test_candidates.append(("PYTEST", "pytest -q"))
+
+test_candidates.append(("UNITTEST", "python -m unittest discover -v"))
+
+for name, cmd in test_candidates:
+    r = run("PROJECT TEST: " + name, cmd, timeout=1800)
+    test_results.append({
+        "name": name,
+        "passed": r,
+    })
+
+# Existing SuperPlatform self-healing regression tests
+self_heal_tests = [
+    ROOT / ".self-healing/tests/test_pydantic_core_android.sh",
+    ROOT / ".self-healing/tests/test_android_pydantic_workflow_integrity.sh",
 ]
 
-tests_found = False
+for test in self_heal_tests:
+    if test.exists():
+        test.chmod(test.stat().st_mode | 0o111)
+        run(
+            "SELF-HEALING REGRESSION: " + str(test.relative_to(ROOT)),
+            f"bash {test}",
+            timeout=1800,
+        )
 
-for cmd in test_commands:
-    if cmd.startswith("pytest") and not (ROOT / "pytest.ini").exists() \
-       and not (ROOT / "pyproject.toml").exists() \
-       and not (ROOT / "setup.cfg").exists():
-        continue
-
-    tests_found = True
-    run("PROJECT TEST: " + cmd, cmd, timeout=1800)
+if not test_candidates and not any(x.exists() for x in self_heal_tests):
+    print("NO TEST FRAMEWORK OR REGISTERED TESTS DISCOVERED")
 
 # 3. GitHub workflow inventory
 run(
@@ -156,7 +185,18 @@ failed = [
 if failed:
     REPORT["status"] = "FAILED_WITH_EVIDENCE"
 else:
-    REPORT["status"] = "VERIFIED_LOCAL_CHECKS"
+    executed = [
+        x for x in REPORT["stages"]
+        if x.get("name", "").startswith("PROJECT TEST")
+        or x.get("name", "").startswith("SELF-HEALING REGRESSION")
+    ]
+
+    passed_tests = [x for x in executed if x.get("passed")]
+
+    if executed and passed_tests:
+        REPORT["status"] = "VERIFIED_LOCAL_CHECKS"
+    else:
+        REPORT["status"] = "NO_EXECUTED_TEST_EVIDENCE"
 
 report_path.write_text(
     json.dumps(REPORT, indent=2, ensure_ascii=False),
