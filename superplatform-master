@@ -189,12 +189,27 @@ report_path = save_report()
 
 failed = [
     x for x in REPORT["stages"]
-    if not x["passed"] and not x.get("no_tests_discovered", False)
+    if (
+        not x.get("passed", False)
+        and not x.get("no_tests_discovered", False)
+        and x.get("returncode", 0) != 0
+    )
 ]
 
 no_tests = [
     x for x in REPORT["stages"]
     if x.get("no_tests_discovered", False)
+]
+
+executed_tests = [
+    x for x in REPORT["stages"]
+    if x.get("returncode", 0) == 0
+    and not x.get("no_tests_discovered", False)
+]
+
+passed_tests = [
+    x for x in executed_tests
+    if x.get("passed", False)
 ]
 
 if failed:
