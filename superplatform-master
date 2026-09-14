@@ -34,10 +34,20 @@ def run(name, cmd, timeout=900):
         )
         output = p.stdout[-30000:]
         print(output)
+        no_tests = (
+            p.returncode == 0
+            and (
+                "NO TESTS RAN" in output
+                or "Ran 0 tests" in output
+                or "collected 0 items" in output
+            )
+        )
+
         result = {
             "name": name,
             "returncode": p.returncode,
-            "passed": p.returncode == 0,
+            "passed": p.returncode == 0 and not no_tests,
+            "no_tests_discovered": no_tests,
             "output": output,
         }
     except subprocess.TimeoutExpired as e:
@@ -179,7 +189,12 @@ report_path = save_report()
 
 failed = [
     x for x in REPORT["stages"]
-    if not x["passed"]
+    if not x["passed"] and not x.get("no_tests_discovered", False)
+]
+
+no_tests = [
+    x for x in REPORT["stages"]
+    if x.get("no_tests_discovered", False)
 ]
 
 if failed:
@@ -194,7 +209,10 @@ else:
     passed_tests = [x for x in executed if x.get("passed")]
 
     if executed and passed_tests:
-        REPORT["status"] = "VERIFIED_LOCAL_CHECKS"
+        if no_tests:
+            REPORT["status"] = "PARTIALLY_VERIFIED_TEST_EVIDENCE"
+        else:
+            REPORT["status"] = "VERIFIED_LOCAL_CHECKS"
     else:
         REPORT["status"] = "NO_EXECUTED_TEST_EVIDENCE"
 
