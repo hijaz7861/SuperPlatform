@@ -16,32 +16,38 @@ from modules.token_manager.performance_monitor import PerformanceMonitor
 from modules.chat_command_engine.intent_parser import IntentParser
 from modules.chat_command_engine.response_generator import ResponseGenerator
 from modules.distributed_agent.coordinator import Coordinator
+from modules.config_loader import load_config
 
 
 class WorkflowLoop:
     def __init__(self):
         self.registry = build_registry()
+        pcfg = load_config("problem_scanner", {"scan_limit": 5, "target_subreddits": ["techsupport"]})
+        tcfg = load_config("token_manager", {"free_tier": {"daily_token_limit": 10000}})
         self.scanner = RedditScanner()
+        self.scan_limit = pcfg.get("scan_limit", 5)
         self.classifier = ProblemClassifier()
         self.matcher = SolutionMatcher()
         self.pricer = PricingEngine()
         self.drafter = OutreachDrafter()
-        self.quota = QuotaEngine(daily_limit=10000)
+        daily = tcfg.get("free_tier", {}).get("daily_token_limit", 10000)
+        self.quota = QuotaEngine(daily_limit=daily)
         self.tracker = UsageTracker()
         self.perf = PerformanceMonitor()
         self.intent = IntentParser()
         self.responder = ResponseGenerator()
         self.user_id = "default_user"
+        self.num_workers = 10
 
     def run_cycle(self, subreddit="techsupport", limit=5):
         t0 = time.time()
         # 0. Distributed parallel search across N workers
-        coord = Coordinator(num_workers=50)
-        search_tasks = [{"action": "scan", "subreddit": subreddit, "i": i} for i in range(limit)]
+        coord = Coordinator(num_workers=self.num_workers)
+        search_tasks = [{"action": "scan", "subreddit": subreddit, "i": i} for i in range(self.scan_limit)]
         coord.submit_tasks(search_tasks)
         coord.run(timeout=10)
         # 1. Scan
-        problems = self.scanner.scan_subreddit(subreddit, limit=limit)
+        problems = self.scanner.scan_subreddit(subreddit, limit=self.scan_limit)
         # 2. Classify
         problems = self.classifier.classify_batch(problems)
         # 3. Match solutions

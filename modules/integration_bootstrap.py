@@ -39,6 +39,13 @@ def build_registry():
         reg.register_engine("wake_word", WakeWordDetector())
     except Exception as e:
         print("voice_listener register failed:", e)
+    try:
+        from modules.distributed_agent import Coordinator, Worker, TaskQueue, Aggregator
+        reg.register_engine("distributed_coordinator", Coordinator(num_workers=10))
+        reg.register_engine("distributed_task_queue", TaskQueue())
+        reg.register_engine("distributed_aggregator", Aggregator())
+    except Exception as e:
+        print("distributed_agent register failed:", e)
     return reg
 
 
