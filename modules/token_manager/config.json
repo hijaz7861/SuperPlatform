@@ -1,0 +1,9 @@
+{
+  "free_tier": {
+    "daily_token_limit": 10000,
+    "recharge_interval_hours": 24,
+    "rate_limit_per_minute": 20,
+    "max_concurrent_requests": 5,
+    "performance_tracking": true
+  }
+}

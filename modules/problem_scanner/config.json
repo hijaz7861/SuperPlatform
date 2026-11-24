@@ -1,0 +1,6 @@
+{
+  "target_subreddits": ["techsupport", "learnprogramming", "forhire", "slavelabour"],
+  "scan_limit": 25,
+  "auto_outreach": false,
+  "default_currency": "USD"
+}

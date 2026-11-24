@@ -75,3 +75,6 @@ backups/
 *.tmp
 
 # Project backup directories
+
+# Runtime state/reports
+.superplatform/
